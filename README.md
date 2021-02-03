@@ -22,7 +22,9 @@ computer's USB port.
 ## Install some software
 
 [Yubikey Manager](https://www.yubico.com/products/services-software/download/yubikey-manager/)
+
 [Yubikey Personalizer](https://www.yubico.com/products/services-software/download/yubikey-personalization-tools/)
+
 [Yubikey Authenticator](https://www.yubico.com/products/services-software/download/yubico-authenticator/)
 
 For ykman cli
