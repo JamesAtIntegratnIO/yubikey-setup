@@ -40,10 +40,10 @@ and don't set up OTP, I'd suggest you disable OTP.
 
 ```bash
 > ykman mode
-Current connection mode is: OTP+U2F+CCID
-Supported connections are: OTP, U2F, CCID
-> ykman mode "U2F+CCID"
-Set mode of YubiKey to U2F+CCID? [y/N]: Y
+Current connection mode is: OTP+FIDO+CCID
+Supported connections are: OTP, FIDO, CCID
+> ykman mode "FIDO+CCID"
+Set mode of YubiKey to FIDO+CCID? [y/N]: Y
 Mode set! You must remove and re-insert your YubiKey for this change to take
 effect.
 ```
@@ -52,13 +52,13 @@ Remove and re-insert the YubiKey.
 
 ```bash
 > ykman mode
-Current connection mode is: U2F+CCID
-Supported connections are: OTP, U2F, CCID
+Current connection mode is: FIDO+CCID
+Supported connections are: OTP, FIDO, CCID
 ```
 
-## Use for Two Factor Authentication / U2F Setup
+## Use for Two Factor Authentication / FIDO/U2F Setup
 
-U2F is the recommended two factor method. It is phishing resistant unlike
+FIDO/U2F is the recommended two factor method. It is phishing resistant unlike
 TOTP/Google Authenticator. It is much harder to compromise than SMS/Voice call
 methods.
 
@@ -97,17 +97,20 @@ Yubico has a [video](https://www.yubico.com/why-yubico/for-individuals/gmail-for
 
 Yubico has a [video and more detailed instructions](https://www.yubico.com/why-yubico/for-individuals/dropbox-for-individuals/)
 
-### Dashlane, Salesforce, Bitbucket, Gitlab, GOV.UK Verify
+### Dashlane, Salesforce, Bitbucket, Gitlab, Duo, 1Password
 
 Yubico has [instructions](https://www.yubico.com/about/background/fido/)
+You can also find a link of all supported [Applications/Sites](https://www.yubico.com/start)
 
 ## YubiKey for GPG keysigning
 
 1. Install GPG2 if you haven't already
 
-   ```bash
-   > brew install gnupg gnupg2
-   ```
+   Before you being, you'll need to install [GPGTools GPG Suite](https://gpgtools.org/). As you do this, here are a few notes about it:
+      
+   - Stash the DMG somewhere if you ever need to uninstall it, as an uninstaller is in the DMG package
+   - After installation completes, you don't need to do anything via the GPG Keychain GUI
+   - Benefits (versus CLI-only apps): Launches gpg-agent automatically, has a GUI for management and PIN entry, doesn't require Yubikey modes to be changed during GPG setup, still installs the CLI apps
 
 2. Configure your GPG conf at `~/.gnupg/gpg.conf`
 
@@ -122,32 +125,12 @@ Yubico has [instructions](https://www.yubico.com/about/background/fido/)
    default-preference-list SHA512 SHA384 SHA256 SHA224 AES256 AES192 AES CAST5 ZLIB BZIP2 ZIP Uncompressed
    ```
 
-3. Temporarily disable U2F
-
-   NOTE: This seemed not to be an issue with my most recent yubikey.
-
-   Having U2F enabled will result in `sharing violations` that results in `gpg2`
-   not being able to access the YubiKey. You will be able to renable U2F and it
-   won't break any sites you already set up with U2F.
-
-   ```bash
-   > ykman mode
-   Current connection mode is: U2F+CCID
-   Supported connections are: OTP, U2F, CCID
-   > ykman mode "CCID"
-   Set mode of YubiKey to CCID? [y/N]: Y
-   Mode set! You must remove and re-insert your YubiKey for this change to take effect.
-   > ykman mode
-   Current connection mode is: CCID
-   Supported connections are: OTP, U2F, CCID
-   ```
-
 3. Generate Keys
 
    _Note:_ If you have a YubiKey 4, you should use 4096 as your key length. NEO
    owners should use 2048 as that is the maximum supported.
 
-   ```bash
+   ```shell
    > gpg2 --card-edit
 
    [truncated...]
@@ -282,7 +265,7 @@ You can generate an SSH key from your PGP key and use it for SSH logins.
     Authentication key: AAAA BBBB CCCC DDDD EEEE  FFFF GGGG HHHH IIII JJJJ
     ```
 
-2. Generate the SSH key
+2. Generate the SSH Pub key
 
     Take the last 16 digits and pass them to `gpg --export-ssh-key`.
 
@@ -295,97 +278,34 @@ You can generate an SSH key from your PGP key and use it for SSH logins.
     ```
 
 3. Copy the public key and add it `~/.ssh/authorized_keys` the machine you want to SSH into
-4. Attempt to login to the machine via SSH
 
-## YubiKey for PIV
+4. You'll be using GPG keys as SSH keys, and we'll start by configuring GPG agent by adding the following block into `.gnupg/gpg-agent.conf`:
 
-Yubico has a GUI tool called yubikey-piv-manager that can help set up your
-YubiKey for PIV. While I have a preference for command-line tools, the GUI
-sets everything up in one click and saves significant hassle.
+      ```bash
+      pinentry-program /usr/local/MacGPG2/libexec/pinentry-mac.app/Contents/MacOS/pinentry-mac
+      enable-ssh-support
+      write-env-file
+      use-standard-socket
+      default-cache-ttl 600
+      max-cache-ttl 7200
+      ```
 
-1. Install YubiKey PIV Manager
+5. add the below block into `~/.bash_profile` or `~/.zshrc`:
 
-    ```bash
-    > brew cask install Caskroom/cask/yubikey-piv-manager
-    ```
+      ```bash
+      #gpg-agent daemon
+      export GPG_TTY="$(tty)"
+      export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
+      gpgconf --launch gpg-agent
+      ```
 
-2. Navigate to `Setup for macOS` and click `yes`.
+6. Reboot to make sure everything starts up cleanly. Probalby doesn't take that much. But it won't kill you.
 
-    Choose a 6-8 digit number. Don't use non-numeric characters. Yubikey will
-    be fine, but macOS will not.
-
-    The default settings are fine.
-
-3. Remove and re-insert your YubiKey.
-
-4. Pair with macOS
-
-    When you insert your Yubikey, a prompt should appear asking if you would
-    like to pair your smartcard. Click `Pair`. It will ask for your username
-    and password as well as the pin you just created. It may also ask you for
-    your keychain password - it's the same as your account password.
-
-5. Login with your YubiKey and PIN
-
-    The next time you login with your YubiKey inserted, macOS should prompt
-    you for your PIN and not a password.
-
-
-<!-- Notes from when I was trying to set it up by hand
-
-```
-> yubico-piv-tool -s 9a -A ECCP256 -a generate
------BEGIN PUBLIC KEY-----
-...
------END PUBLIC KEY-----
-Successfully generated a new private key.
-
-```
-yubico-piv-tool -s 9a -S '/CN=nano4/OU=yubikey/O=ldchang.com/' -P 123456 -a verify -a request
-
-Successfully verified PIN.
-Please paste the public key...
------BEGIN PUBLIC KEY-----
-...
------END PUBLIC KEY-----
------BEGIN CERTIFICATE REQUEST-----
-...
------END CERTIFICATE REQUEST-----
-Successfully generated a certificate request.
-```
-
-```
-yubico-piv-tool -s 9a -S '/CN=nano4/OU=yubikey/O=ldchang.com/' -P 123456 -a verify -a selfsign
-
-Successfully verified PIN.
-Please paste the public key...
------BEGIN PUBLIC KEY-----
-...
------END PUBLIC KEY-----
------BEGIN CERTIFICATE-----
-...
------END CERTIFICATE-----
-Successfully generated a new self signed certificate.
-```
-
-```
-> yubico-piv-tool -s 9a -a import-certificate
-Please paste the certificate...
------BEGIN CERTIFICATE-----
-...
------END CERTIFICATE-----
-Successfully imported a new certificate.
-```
-
--->
-
-## YubiKey for OSX login
-
-Once you have PIV credentials on your YubiKey, macOS should prompt you if you
-want to use it for login.
-
-TODO: Look into `yubiswitch` to see how it will lock the screen when the
-YubiKey is removed.
+7. Verify the ssh-agent has your key from the gpg-agent
+      ```bash
+      ssh-add -L
+      ```
+8. Attempt to login to the machine via SSH
 
 ## Set up your YubiKey at TOTP - a Google Authenticator replacement
 
