@@ -25,6 +25,11 @@ computer's USB port.
 [Yubikey Personalizer](https://www.yubico.com/products/services-software/download/yubikey-personalization-tools/)
 [Yubikey Authenticator](https://www.yubico.com/products/services-software/download/yubico-authenticator/)
 
+For ykman cli
+```bash
+brew install ykman
+```
+
 ## Turn off OTP - AKA the random letters when you accidentally touch it
 
 This will turn off One-Time-Password. Most users will not find OTP useful and
@@ -348,3 +353,14 @@ device will generate the same codes and will be able to access your account.
     - Gmail: `Can't scan it?`
     - Github `Enter this text code`
 
+## Require Touch to access keys
+   I wanted to require a touch any time I tried to use my YubiKey for ssh authentication to prevent rogue processes from using the key while it's plugged in.
+
+   You can use the YubiKey Manager CLI to require this; I installed it via Homebrew.
+
+   After installed, use the ykman openpgp touch subcommand to configure the touch settings:
+   ```bash
+   $ ykman openpgp set-touch aut on
+   $ ykman openpgp set-touch enc on
+   $ ykman openpgp set-touch sig on
+   ```
